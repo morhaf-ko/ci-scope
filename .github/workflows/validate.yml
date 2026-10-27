@@ -1,0 +1,77 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ${{ vars.CI_RUNNER }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Prepare committed interface fixtures
+        id: fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=$(git rev-parse HEAD)
+          fixture=$(mktemp -d "$RUNNER_TEMP/ci-scope.XXXXXX")
+          scope_index="$fixture/index"
+          GIT_INDEX_FILE="$scope_index" git read-tree "$base"
+          blob=$(printf '%s\n' 'Metadata fixture' | git hash-object -w --stdin)
+          GIT_INDEX_FILE="$scope_index" git update-index --add --cacheinfo "100644,$blob,README.md"
+          tree=$(GIT_INDEX_FILE="$scope_index" git write-tree)
+          metadata=$(git -c user.name='Scope fixture' -c user.email=fixture@example.invalid commit-tree "$tree" -p "$base" -m 'Metadata fixture')
+          GIT_INDEX_FILE="$scope_index" git update-index --add --cacheinfo "100644,$blob,runtime-fixture.ts"
+          tree=$(GIT_INDEX_FILE="$scope_index" git write-tree)
+          runtime=$(git -c user.name='Scope fixture' -c user.email=fixture@example.invalid commit-tree "$tree" -p "$metadata" -m 'Runtime fixture')
+          printf 'base=%s\nmetadata=%s\nruntime=%s\n' "$base" "$metadata" "$runtime" >> "$GITHUB_OUTPUT"
+      - name: Exercise metadata-only interface
+        id: metadata
+        uses: ./
+        with:
+          base: ${{ steps.fixtures.outputs.base }}
+          head: ${{ steps.fixtures.outputs.metadata }}
+      - name: Exercise mixed-runtime interface
+        id: runtime
+        uses: ./
+        with:
+          base: ${{ steps.fixtures.outputs.base }}
+          head: ${{ steps.fixtures.outputs.runtime }}
+      - name: Require conservative interface outputs
+        env:
+          METADATA_RUNTIME: ${{ steps.metadata.outputs.runtime-required }}
+          MIXED_RUNTIME: ${{ steps.runtime.outputs.runtime-required }}
+        run: |
+          test "$METADATA_RUNTIME" = false
+          test "$MIXED_RUNTIME" = true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: node --test test/*.js
+      - name: Check workflow syntax
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro" -w /repo
+          rhysd/actionlint:1.7.12@sha256:9d36088643581e728c969f35141f88139fec77280b2be23c1f66f8e40e1025e7
+      - name: Check classifier shell syntax
+        run: shellcheck scope.sh
+      - name: Scan automation offline
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          advanced-security: false
+          online-audits: false
+          annotations: true
+          inputs: .
+          version: 1.29.0

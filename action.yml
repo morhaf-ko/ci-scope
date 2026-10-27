@@ -1,0 +1,38 @@
+name: CI change scope
+description: Select runtime validation from the complete committed Git diff, conservatively requiring it for unknown paths or history.
+
+inputs:
+  base:
+    description: Base commit for the caller event.
+    required: false
+    default: ${{ github.event.pull_request.base.sha || github.event.before }}
+  head:
+    description: Checked-out commit for the caller event.
+    required: false
+    default: ${{ github.sha }}
+  profile:
+    description: Scope policy, either default or founder-template.
+    required: false
+    default: default
+
+outputs:
+  runtime-required:
+    description: False only when every changed path is allowed by the selected non-runtime policy.
+    value: ${{ steps.scope.outputs.runtime_required }}
+
+runs:
+  using: composite
+  steps:
+    - name: Select runtime validation
+      id: scope
+      shell: bash
+      env:
+        SCOPE_BASE: ${{ inputs.base }}
+        SCOPE_HEAD: ${{ inputs.head }}
+        SCOPE_PROFILE: ${{ inputs.profile }}
+        SCOPE_SCRIPT: ${{ github.action_path }}/scope.sh
+      run: |
+        scope=$(bash "$SCOPE_SCRIPT" "$SCOPE_BASE" "$SCOPE_HEAD" "$SCOPE_PROFILE")
+        case "$scope" in true|false) ;; *) exit 1 ;; esac
+        printf 'runtime_required=%s\n' "$scope" >> "$GITHUB_OUTPUT"
+        printf 'Runtime validation required: %s\n' "$scope" >> "$GITHUB_STEP_SUMMARY"
