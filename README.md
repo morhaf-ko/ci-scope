@@ -14,12 +14,12 @@ Check out the caller with `fetch-depth: 0` and `persist-credentials: false`. Pin
     persist-credentials: false
     fetch-depth: 0
 - id: scope
-  uses: morhaf-ko/ci-scope@REVIEWED_FULL_COMMIT_SHA
+  uses: morhaf-ko/ci-scope@REVIEWED_FULL_COMMIT_SHA # v1.0.0
 - if: ${{ steps.scope.outputs.runtime-required != 'false' }}
   run: your-native-validation-command
 ```
 
-The example requires the actual reviewed commit SHA and the caller's existing validation command. No floating release tag is supported as a consumer reference.
+The example requires the actual reviewed commit SHA and the caller's existing validation command. Keep the matching released version comment beside the SHA so dependency automation can track updates. No floating release tag is supported as a consumer reference.
 
 ## Interface
 
