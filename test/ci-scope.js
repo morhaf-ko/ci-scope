@@ -47,6 +47,25 @@ it("default policy works without a language runtime or repository-specific comma
   assert.equal(scope(root, base, git(root, "rev-parse", "HEAD")), "false");
 });
 
+it("runtime-docs validates declarations and fixtures under documentation paths", () => {
+  const { root, base } = fixture();
+  write(root, "docs/runtime.json", "{}\n");
+  write(root, "docs/declarations.toml", "limit = 1\n");
+  git(root, "add", ".");
+  git(root, "commit", "-qm", "Executable documentation fixture");
+  const head = git(root, "rev-parse", "HEAD");
+  assert.equal(scope(root, base, head), "false");
+  assert.equal(scope(root, base, head, "runtime-docs"), "true");
+});
+
+it("runtime-docs still skips root guidance and issue forms", () => {
+  const { root, base } = fixture();
+  for (const path of ["README.md", "AGENTS.md", ".github/ISSUE_TEMPLATE/request.yml"]) write(root, path);
+  git(root, "add", ".");
+  git(root, "commit", "-qm", "Guidance-only fixture");
+  assert.equal(scope(root, base, git(root, "rev-parse", "HEAD"), "runtime-docs"), "false");
+});
+
 it("Founder producer-only changes are skipped only under the explicit Founder profile", () => {
   const { root, base } = fixture();
   for (const path of ["tests/generator/contract.test.ts", "template/VERSION", "template/core/files/AGENTS.md", "template/core/files/README.md", "template/core/files/DEVELOPMENT.md", "template/core/files/UX.md", "template/targets/web/files/BROWSER.md"]) write(root, path);
@@ -59,13 +78,13 @@ it("Founder producer-only changes are skipped only under the explicit Founder pr
 });
 
 for (const path of ["src/runtime.ts", "scripts/generator.ts", ".github/workflows/ci.yml", ".github/actions/ci-scope/scope.sh", "package.json", "bun.lock", "go.mod", "template/manifests/catalog.ts", "template/core/files/lib/runtime.ts", "template/core/files/tests/runtime.test.ts", "template/modules/blog/files/content/post.mdx", "template/new-capability.md", "unknown-input"]) {
-  it(`${path} requires runtime validation in both profiles`, () => {
+  it(`${path} requires runtime validation in every supported profile`, () => {
     const { root, base } = fixture();
     write(root, path);
     git(root, "add", ".");
     git(root, "commit", "-qm", "Runtime fixture");
     const head = git(root, "rev-parse", "HEAD");
-    for (const profile of ["default", "founder-template"]) assert.equal(scope(root, base, head, profile), "true");
+    for (const profile of ["default", "founder-template", "runtime-docs"]) assert.equal(scope(root, base, head, profile), "true");
   });
 }
 

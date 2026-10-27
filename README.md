@@ -4,7 +4,7 @@ A composite GitHub Action that decides whether committed changes require runtime
 
 ## Caller contract
 
-Use this action only after confirming that its metadata paths are not runtime inputs in your repository. Documentation applications whose `docs/` directory is built or served must keep runtime validation enabled instead. Keep application test, build, release and deployment commands with their owning repositories.
+Use this action only after confirming that its metadata paths are not runtime inputs in your repository. Repositories that build, serve or test inputs from `docs/` must select `profile: runtime-docs`. Keep application test, build, release and deployment commands with their owning repositories.
 
 Check out the caller with `fetch-depth: 0` and `persist-credentials: false`. Pin this action to a reviewed full commit SHA. Run expensive validation unless `steps.scope.outputs.runtime-required` is explicitly `false`. Security and required governance checks remain independent and unconditional.
 
@@ -27,9 +27,9 @@ The example requires the actual reviewed commit SHA and the caller's existing va
 | --- | --- | --- |
 | `base` | Pull request base SHA or push `before` SHA | Complete base commit object |
 | `head` | `github.sha` | Actual checked-out commit; override for a caller that explicitly checks out another ref |
-| `profile` | `default` | `default` or `founder-template` |
+| `profile` | `default` | `default`, `founder-template` or `runtime-docs` |
 
-The `runtime-required` output is `false` only when all paths match the selected metadata policy. The default policy allows `docs/**`, root `README.md`, root `AGENTS.md` and `.github/ISSUE_TEMPLATE/**`. The explicit `founder-template` profile additionally allows generator test inputs and the producer guidance paths listed in `scope.sh`; producer tests must still run. Workflow, dependency, application and unknown paths require runtime validation.
+The `runtime-required` output is `false` only when all paths match the selected metadata policy. The default policy allows `docs/**`, root `README.md`, root `AGENTS.md` and `.github/ISSUE_TEMPLATE/**`. The `runtime-docs` profile keeps all `docs/**` changes under runtime validation while allowing the other metadata paths. The explicit `founder-template` profile additionally allows generator test inputs and the producer guidance paths listed in `scope.sh`; producer tests must still run. Workflow, dependency, application and unknown paths require runtime validation.
 
 The action inspects the complete NUL-delimited Git diff and disables rename collapsing. Missing history, malformed revisions, unsupported events and unknown profiles retain runtime validation. Infrastructure failures fail the action rather than emit an unsafe skip. It does not infer application semantics, disable security checks, authorize deployment or decide which native tests an application needs.
 

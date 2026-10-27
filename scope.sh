@@ -6,7 +6,7 @@ head_commit=${2:-}
 scope_profile=${3:-default}
 full_validation() { printf '%s\n' true; exit 0; }
 
-case "$scope_profile" in default|founder-template) ;; *) full_validation ;; esac
+case "$scope_profile" in default|founder-template|runtime-docs) ;; *) full_validation ;; esac
 [[ $base_commit =~ ^[0-9a-f]{40}$ && $head_commit =~ ^[0-9a-f]{40}$ ]] || full_validation
 git cat-file -e "$base_commit^{commit}" 2>/dev/null || full_validation
 git cat-file -e "$head_commit^{commit}" 2>/dev/null || full_validation
@@ -17,7 +17,8 @@ git diff --no-renames --no-ext-diff --name-only -z "$base_commit" "$head_commit"
 
 while IFS= read -r -d '' changed_path; do
   case "$changed_path" in
-    docs/*|README.md|AGENTS.md|.github/ISSUE_TEMPLATE/*) continue ;;
+    docs/*) [[ $scope_profile == runtime-docs ]] || continue ;;
+    README.md|AGENTS.md|.github/ISSUE_TEMPLATE/*) continue ;;
   esac
   if [[ $scope_profile == founder-template ]]; then
     case "$changed_path" in
